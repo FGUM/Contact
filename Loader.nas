@@ -10,3 +10,4 @@ io.load_nasal(resolvepath("FGUM/Contact/Buffered.nas"),         "FGUM_Contact_Bu
 io.load_nasal(resolvepath("FGUM/Contact/AircraftObserver.nas"), "FGUM_Contact");
 io.load_nasal(resolvepath("FGUM/Contact/Contact.nas"),          "FGUM_Contact");
 io.load_nasal(resolvepath("FGUM/Contact/ContactManager.nas"),   "FGUM_Contact");
+io.load_nasal(resolvepath("FGUM/Contact/ContactProvider.nas"),  "FGUM_Contact");
