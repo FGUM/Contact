@@ -17,6 +17,8 @@ var Rot  = FGUM_LA.Rotation3;
 var BufMap = FGUM_Contact_Buffered.Map;
 var BufAcc = FGUM_Contact_Buffered.Accessor;
 
+var cordToAtt = Quat.fromAxisAngle([0, 1, 0], -90*D2R);
+
 #An observer for an AI contact.
 AircraftObserver = {
     #! \brief AircraftObserver default constructor.
@@ -78,8 +80,9 @@ AircraftObserver = {
     #! \return  The relative neutral attitude orientation (Quaterinon).
     _geoRefAcc: func(){
         var pos = me.getPosGeo();
-        return        Quat.fromAxisAngle([0, 1, 0], pos.lat() * D2R)
-            .quatMult(Quat.fromAxisAngle([1, 0, 0], pos.lon() * D2R));
+        return        cordToAtt
+            .quatMult(Quat.fromAxisAngle([1, 0, 0],  pos.lon() * D2R))
+            .quatMult(Quat.fromAxisAngle([0, 1, 0], -pos.lat() * D2R));
     },
     
     #! \brief   Private accessor to read the attitude of the aircraft.

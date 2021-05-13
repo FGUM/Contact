@@ -17,6 +17,8 @@ var Rot  = FGUM_LA.Rotation3;
 var BufMap = FGUM_Contact_Buffered.Map;
 var BufAcc = FGUM_Contact_Buffered.Accessor;
 
+var cordToAtt = Quat.fromAxisAngle([0, 1, 0], -90*D2R);
+
 # The various types of contacts.
 ContactTypes = {
     Air      : 0,
@@ -44,7 +46,6 @@ Contact = {
         var callsignProp = prop.getNode("callsign");
         me.callsign = callsignProp != nil ? callsignProp.getValue() : "";
         
-                
         me._posProp = prop.getNode("position");
         
         # Properties for the pos private accessor (_posXYZAcc).
@@ -192,8 +193,9 @@ Contact = {
     #! \return  The relative neutral attitude orientation (Quaterinon).
     _geoRefAcc: func(){
         var pos = me.getPosGeo();
-        return        Quat.fromAxisAngle([0, 1, 0], pos.lat() * D2R)
-            .quatMult(Quat.fromAxisAngle([1, 0, 0], pos.lon() * D2R));
+        return        cordToAtt
+            .quatMult(Quat.fromAxisAngle([1, 0, 0], pos.lon() * D2R))
+            .quatMult(Quat.fromAxisAngle([0, 1, 0], pos.lat() * D2R));
     },
     
     #! \brief   Private accessor to read the attitude of the contact.
@@ -239,7 +241,7 @@ Contact = {
     #! \brief   Private accessor to compute the position differential from the observer to the contact.
     #! \details The linked public accessor is `getDPos()`.
     #! \return  The position differential from the observer to the contact (Vector)(meters).   
-    _dPosAcc: func(){        
+    _dPosAcc: func(){
         return me.getPosXYZ().vecSub(me.observer.getPosXYZ());
     },
     
@@ -254,6 +256,7 @@ Contact = {
     #! \details The linked public accessor is `getObserverRelativePos()`.
     #! \return  The position of the contact in the observer referential (Vector)(meters).
     _obsRelativePosAcc: func(){
+        # TODO: Debug, something wrong in there.
         return Vec.new(Rot.new(me.observer.getOrientation().conjugate())
                           .apply(me.getDPos().data));
     },
@@ -262,13 +265,16 @@ Contact = {
     #! \details The linked public accessor is `getObserverRelativeDev()`.
     #! \return  The deviation of the contact in the observer referential (Quaternion).
     _obsRelativeDevAcc: func(){
-        return Quat.fromDirection(me.getObserverRelativePos().data);
+        # TODO: Debug, something wrong when doing Quat.fromDirection(me.getObserverRelativePos());. But with the following code, it is ok.
+        return me.observer.getOrientation().conjugate()
+                          .quatMult(Quat.fromDirection(me.getDPos().data));
     },
     
     #! \brief   Private accessor to compute the position of the observer in the contact referential.
     #! \details The linked public accessor is `getContactRelativePos()`.
     #! \return  The position of the observer in the contact referential (Vector)(meters).
     _contactRelativePosAcc: func(){
+        # TODO: Debug, something wrong in there (or in the obs equivalent).
         return Vec.new(Rot.new(me.getOrientation().conjugate())
                           .apply(me.getDPos().neg().data));
     },
@@ -277,6 +283,9 @@ Contact = {
     #! \details The linked public accessor is `getContactRelativeDev()`.
     #! \return  The deviation of the observer in the contact referential (Quaternion).
     _contactRelativeDevAcc: func(){
+        # TODO: Debug, something wrong when doing Quat.fromDirection(me.getContactRelativePos().data);. But with the following code, it is ok.
+        return me.getOrientation().conjugate()
+                 .quatMult(Quat.fromDirection(me.getDPos().neg().data));
         return Quat.fromDirection(me.getContactRelativePos().data);
     },
     
@@ -284,13 +293,17 @@ Contact = {
     #! \details The linked public accessor is `getClosureSpeed()`.
     #! \return  The speed at which the contact and target are closing (Scalar).
     _closureSpeedAcc: func(){
+        # Copy the vectors so normalizing them has no side effects.
+        var crp = FGUM_LA.Vector.new(me.getContactRelativePos().data).normalize();
+        var orp = FGUM_LA.Vector.new(me.getObserverRelativePos().data).normalize();
+        
         # The speed of the contact projected on the normalized observer position relative to the contact.
         # Plus
         # The speed of the observer projected on the normalized contact position relative to the observer.
         return me.getVelUVW()
-                 .orthogonalProjection(me.getContactRelativePos().normalize())
+                 .orthogonalProjection(crp)
              + me.observer.getVelUVW()
-                 .orthogonalProjection(me.getObserverRelativePos().normalize());
+                 .orthogonalProjection(orp);
     },
     
     #! \brief   Private accessor to compute the contact altitude AGL.
